@@ -1,0 +1,30 @@
+[
+  {
+    "id": "NW-P17",
+    "site": "DE-A",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-B",
+    "firmware": "2.4"
+  },
+  {
+    "id": "NW-P18",
+    "site": "DE-A",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-A",
+    "firmware": "1.3"
+  },
+  {
+    "id": "NW-P19",
+    "site": "DE-A",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-B",
+    "firmware": ""
+  },
+  {
+    "id": "NW-B01",
+    "site": "DE-B",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-B",
+    "firmware": "2.4"
+  }
+]

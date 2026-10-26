@@ -1,0 +1,62 @@
+[
+  {
+    "file": "manuals/c2-rev3.md",
+    "site": "DE-A",
+    "family": "C2-MAN",
+    "revision": "3",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-B",
+    "firmware_min": "2.0",
+    "firmware_max": "2.9",
+    "status": "published",
+    "title": "NW-C2 · Manuel applicable · révision 3"
+  },
+  {
+    "file": "manuals/c2-rev1.md",
+    "site": "DE-A",
+    "family": "C2-MAN",
+    "revision": "1",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-A",
+    "firmware_min": "1.0",
+    "firmware_max": "1.9",
+    "status": "published",
+    "title": "NW-C2 · Ancien matériel · révision 1"
+  },
+  {
+    "file": "manuals/observations.md",
+    "site": "DE-A",
+    "family": "OBS",
+    "revision": "1",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-B",
+    "firmware_min": "2.0",
+    "firmware_max": "2.9",
+    "status": "published",
+    "title": "Guide des observations · NW-C2"
+  },
+  {
+    "file": "manuals/private-b.md",
+    "site": "DE-B",
+    "family": "C2-MAN",
+    "revision": "3",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-B",
+    "firmware_min": "2.0",
+    "firmware_max": "2.9",
+    "status": "published",
+    "title": "Document privé du site B"
+  },
+  {
+    "file": "manuals/unreadable.md",
+    "site": "DE-A",
+    "family": "SCAN",
+    "revision": "1",
+    "model": "NW-Conveyor-C2",
+    "hardware": "rev-B",
+    "firmware_min": "2.0",
+    "firmware_max": "2.9",
+    "status": "quarantined",
+    "title": "Document scanné sans texte"
+  }
+]

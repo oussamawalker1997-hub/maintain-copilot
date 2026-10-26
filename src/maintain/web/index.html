@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MAINTAIN — Maintenance intelligence</title>
+  <link rel="stylesheet" href="/styles.css"><script src="/app.js" defer></script>
+</head>
+<body>
+  <aside>
+    <a class="brand" href="/">M<span>MAINTAIN<small>MAINTENANCE INTELLIGENCE</small></span></a>
+    <p class="eyebrow">WORKSPACE / 01</p>
+    <div class="nav active">Recherche documentaire</div>
+    <a class="nav" href="/docs" target="_blank" rel="noreferrer">Documentation API ↗</a>
+    <div class="aside-bottom"><span class="dot"></span> Baseline lexicale · v0.1<br><small>Corpus synthétique / usage local</small></div>
+  </aside>
+  <main>
+    <header><span>Engineering workbench <span class="slash">/</span> Maintenance</span><span class="tag">DÉMONSTRATEUR</span></header>
+    <section class="intro"><p class="eyebrow">EVIDENCE BEFORE ACTION</p><h1>La bonne information.<br><span>Pour le bon équipement.</span></h1><p>Retrouvez des passages applicables, vérifiez leurs références<br>et préparez un dossier d’intervention traçable.</p></section>
+    <section class="connection card">
+      <div><h2>Accès au workspace</h2><p id="identity">Connectez-vous avec une clé locale générée à l’initialisation.</p></div>
+      <form id="login"><label for="token">Clé d’accès locale</label><div class="inline"><input id="token" type="password" autocomplete="off" placeholder="Clé de tech-a ou editor-a" required><button>Se connecter</button></div></form>
+      <button id="logout" class="secondary" hidden>Déconnexion</button>
+    </section>
+    <div class="workspace">
+      <section class="card search"><p class="eyebrow">01 / CONTEXTE & RECHERCHE</p><h2>Que cherchez-vous ?</h2>
+        <form id="search"><label for="asset">Équipement</label><select id="asset" required disabled><option value="">Connexion nécessaire</option></select><p id="variant" class="subtle"></p>
+          <label for="question">Code d’alarme ou question documentaire</label><textarea id="question" maxlength="4000" required placeholder="Que signifie E042 ?" rows="4" disabled></textarea>
+          <div class="examples"><button type="button" class="chip" data-query="Que signifie E042 ?">E042 · capteur</button><button type="button" class="chip" data-query="E099">E099 · inconnu</button></div>
+          <button id="search-button" disabled>Rechercher les références <span>→</span></button>
+        </form><p class="notice">Aucune commande machine. Les résultats sont des extraits documentaires, pas un diagnostic validé.</p>
+      </section>
+      <section class="card results"><div class="section-heading"><p class="eyebrow">02 / ÉLÉMENTS RETROUVÉS</p><span id="result-mode" class="badge">B0 · lexical</span></div>
+        <div id="results" aria-live="polite"><div class="empty"><div class="empty-icon">↗</div><h2>Chaque réponse commence<br>par une source.</h2><p>Sélectionnez un équipement et lancez une recherche.<br>Les versions applicables seront filtrées automatiquement.</p></div></div>
+      </section>
+    </div>
+    <section id="ticket-panel" class="card" hidden><p class="eyebrow">03 / DOSSIER D’INTERVENTION</p><h2>Préparer un ticket</h2><p>Les références seront liées au dossier. La livraison utilise une GMAO locale simulée.</p><form id="ticket-form"><label for="observations">Vos observations factuelles</label><textarea id="observations" maxlength="4000" rows="3" required></textarea><label class="checkbox"><input type="checkbox" id="confirmed" required> J’ai vérifié les sources et je confirme la création de ce ticket de démonstration.</label><button id="ticket-button">Créer le ticket confirmé</button></form><p id="ticket-status" aria-live="polite"></p></section>
+    <p id="message" role="status" aria-live="polite"></p>
+    <footer><span>MAINTAIN / Evidence-first engineering</span><span>Données fictives · Aucun impact industriel revendiqué</span></footer>
+  </main>
+</body>
+</html>
