@@ -136,3 +136,22 @@ def test_seed_does_not_overwrite_existing_credentials(setup):
     assert (
         json.loads((database.parent / "demo-credentials.json").read_text(encoding="utf-8")) == keys
     )
+
+
+def test_feedback_and_audit_are_scoped_and_editor_only(setup):
+    client, _, keys = setup
+    result = question(client, keys).json()
+    feedback = {"run_id": result["run_id"], "useful": True, "reason": "Sources are readable"}
+    assert (
+        client.post("/v1/feedback", headers=headers(keys, "tech-b"), json=feedback).status_code
+        == 404
+    )
+    response = client.post("/v1/feedback", headers=headers(keys), json=feedback)
+    assert response.status_code == 201
+    assert client.get("/v1/audit", headers=headers(keys)).status_code == 403
+    audit = client.get("/v1/audit", headers=headers(keys, "editor-a"))
+    assert audit.status_code == 200
+    assert any(
+        row["event"] == "feedback.created" and row["object_id"] == response.json()["id"]
+        for row in audit.json()
+    )

@@ -86,6 +86,7 @@ SCENARIOS = [
     documents.test_exact_range_supersedes_previous_revision,
     operations.test_confirmation_and_run_asset_match_required,
     operations.test_invalid_payload_does_not_echo_sensitive_input,
+    operations.test_feedback_and_audit_are_scoped_and_editor_only,
 ]
 
 
@@ -165,8 +166,8 @@ def test_pg_failure_rolls_back_run_and_audit_without_exposing_error(pg_setup):
     with admin(settings) as db:
         db.execute("""CREATE FUNCTION maintain.test_reject_audit() RETURNS trigger
         LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'PRIVATE_DATABASE_SENTINEL'; END $$""")
-        db.execute("""CREATE TRIGGER test_reject_audit BEFORE INSERT ON maintain.audit
-        FOR EACH ROW EXECUTE FUNCTION maintain.test_reject_audit()""")
+        db.execute("""CREATE CONSTRAINT TRIGGER test_reject_audit AFTER INSERT ON maintain.audit
+        DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION maintain.test_reject_audit()""")
     try:
         response = question(client, keys)
         assert response.status_code == 500

@@ -61,9 +61,9 @@ selected; PostgreSQL backup/restore qualification remains pending.
 ## Evidence and remaining limits
 
 CI uses PostgreSQL 17 in a disposable volume on host port 25432. It tests real HTTP and CLI
-operations, reuses 17 API contract scenarios, and checks concurrent ticket/worker idempotency,
+operations, reuses 18 API contract scenarios, and checks concurrent ticket/worker idempotency,
 revocation blocking, inactive/ambiguous tokens, duplicate principal IDs across sites,
-transaction rollback after a database exception, backend outage and provisioning guards.
+transaction rollback after a deferred commit exception, backend outage and provisioning guards.
 Destructive test resets require explicit disposable-test opt-in and the separate test port.
 Normal tests skip those integration tests without this opt-in.
 
