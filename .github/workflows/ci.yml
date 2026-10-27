@@ -34,6 +34,10 @@ jobs:
           path: artifacts/evaluation.json
           retention-days: 7
   postgres-foundation:
+    strategy:
+      fail-fast: false
+      matrix:
+        credentials: [lf, crlf, legacy-crlf]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,8 +47,51 @@ jobs:
           python-version: '3.12'
       - name: Generate isolated development credentials
         run: python scripts/postgres_local.py prepare
+      - name: Reproduce Windows credentials and legacy bootstrap
+        if: matrix.credentials != 'lf'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for path in Path('.local/postgres').iterdir():
+              data = path.read_bytes().rstrip(b'\r\n')
+              path.chmod(0o644)
+              path.write_bytes(data + b'\r\n')
+              path.chmod(0o444)
+          PY
+      - name: Restore legacy role bootstrap for recovery regression
+        if: matrix.credentials == 'legacy-crlf'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('infra/postgres/001-roles.sh')
+          path.write_text(path.read_text().replace("tr -d '\\r\\n' <", "cat"))
+          PY
       - name: Start real PostgreSQL 17
         run: docker compose -f compose.postgres.yaml up -d --wait
+      - name: Reproduce original authentication failure without exposing credentials
+        if: matrix.credentials == 'legacy-crlf'
+        run: |
+          python - <<'PY'
+          import subprocess
+          command = ["docker", "compose", "-f", "compose.postgres.yaml", "exec", "-T",
+                     "postgres", "sh", "-c", 'export PGPASSWORD="$(cat /run/secrets/admin_password)"; exec psql -X -h 127.0.0.1 -U maintain_admin -d maintain -c "SELECT 1;"']
+          result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+          assert result.returncode != 0 and "password authentication failed" in result.stderr
+          print("PASS legacy_crlf_authentication_failure_reproduced")
+          PY
+      - name: Verify fresh bootstrap credentials before any repair
+        if: matrix.credentials != 'legacy-crlf'
+        run: |
+          python - <<'PY'
+          from scripts.postgres_local import ROLE_CONFIG, scalar
+          for role, (user, _) in ROLE_CONFIG.items():
+              assert scalar("SELECT current_user;", role) == user
+          print("PASS fresh_role_authentication")
+          PY
+      - name: Repair existing credentials and verify repeatability
+        run: |
+          python scripts/postgres_local.py repair-passwords
+          python scripts/postgres_local.py repair-passwords
       - name: Apply migrations and verify repeatability
         run: |
           python scripts/postgres_local.py migrate

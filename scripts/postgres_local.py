@@ -41,8 +41,8 @@ def prepare(root=ROOT):
     directory.chmod(0o700)
     for name in SECRET_FILES:
         fd = os.open(directory / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o444)
-        with os.fdopen(fd, "w", encoding="ascii") as stream:
-            stream.write(secrets.token_hex(32) + "\n")
+        with os.fdopen(fd, "wb") as stream:
+            stream.write((secrets.token_hex(32) + "\n").encode("ascii"))
     print("POSTGRES_SECRETS_READY (.local/postgres; values not displayed)")
 
 
@@ -50,7 +50,7 @@ def psql(statement, role="admin", *, allow_failure=False):
     user, secret = ROLE_CONFIG[role]
     # Shell text is constant except for identifiers drawn from this fixed allowlist.
     shell = (
-        f'export PGPASSWORD="$(cat /run/secrets/{secret})"; '
+        f"export PGPASSWORD=\"$(tr -d '\\r\\n' < /run/secrets/{secret})\"; "
         "export PGCLIENTENCODING=UTF8; "
         f"exec psql -X -qAt -h 127.0.0.1 -U {user} -d maintain "
         "-v ON_ERROR_STOP=1 -P pager=off"
@@ -73,6 +73,61 @@ def psql(statement, role="admin", *, allow_failure=False):
     if result.returncode and not allow_failure:
         raise RuntimeError("PostgreSQL command failed: " + result.stderr.strip()[-1500:])
     return result
+
+
+def repair_passwords():
+    """Reconcile the three local development roles with existing secret values.
+
+    Uses the container's trusted Unix socket, never a network authentication bypass.
+    Does not rewrite files, create roles, alter privileges or touch application data.
+    """
+    directory = ROOT / ".local/postgres"
+    for name in SECRET_FILES:
+        if not re.fullmatch(rb"[a-f0-9]{64}(?:\r?\n)?", (directory / name).read_bytes()):
+            raise RuntimeError("Unexpected credential format; no changes made")
+    exports = "set -eu; " + " ".join(
+        f"export REPAIR_{role.upper()}=\"$(tr -d '\\r\\n' < /run/secrets/{secret})\";"
+        for role, (_, secret) in ROLE_CONFIG.items()
+    )
+    for role in ROLE_CONFIG:
+        variable = "REPAIR_" + role.upper()
+        exports += (
+            f' test "${{#{variable}}}" -eq 64; case "${variable}" in *[!0-9a-f]*) exit 1;; esac;'
+        )
+    sql = (
+        "BEGIN;\n"
+        + "\n".join(
+            f"\\getenv password_{role} REPAIR_{role.upper()}\n"
+            f"ALTER ROLE {user} PASSWORD :'password_{role}';"
+            for role, (user, _) in ROLE_CONFIG.items()
+        )
+        + "\nCOMMIT;\n"
+    )
+    result = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(ROOT / "compose.postgres.yaml"),
+            "exec",
+            "-T",
+            "postgres",
+            "sh",
+            "-c",
+            exports + " exec psql -X -q -U maintain_admin -d maintain -v ON_ERROR_STOP=1",
+        ],
+        input=sql,
+        encoding="utf-8",
+        capture_output=True,
+        timeout=60,
+        cwd=ROOT,
+    )
+    if result.returncode:
+        # SQL errors can contain substituted password literals. Never echo them.
+        raise RuntimeError("Password repair failed; details withheld to protect credentials")
+    for role, (user, _) in ROLE_CONFIG.items():
+        require(scalar("SELECT current_user;", role) == user, "Role authentication check failed")
+    print("POSTGRES_PASSWORDS_REPAIRED (3 TCP authentications passed; secret files unchanged)")
 
 
 def migration_script(path):
@@ -324,10 +379,15 @@ COMMIT;""")
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("prepare", "migrate", "verify"))
+    parser.add_argument("command", choices=("prepare", "repair-passwords", "migrate", "verify"))
     args = parser.parse_args()
     try:
-        {"prepare": prepare, "migrate": migrate, "verify": verify}[args.command]()
+        {
+            "prepare": prepare,
+            "repair-passwords": repair_passwords,
+            "migrate": migrate,
+            "verify": verify,
+        }[args.command]()
     except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
         raise SystemExit(str(exc)) from None
 
