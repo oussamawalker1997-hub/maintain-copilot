@@ -6,12 +6,12 @@ Le dossier de mission est la cible. La version 0.1 est une première tranche com
 |---|---|---|
 | J0 — Cadrage et sources | Partiel | Mission, 5 documents originaux et 10 questions présents ; entretiens et corpus réaliste à obtenir |
 | J1 — Tranche B0 | Réalisé sur corpus synthétique | Installation, interface, actifs, recherche avec références, tests d’accès |
-| J2 — Données et autorisation | Partiel | Brouillon/quarantaine/publication/révocation présents ; PostgreSQL, migrations évolutives, RLS et parser isolé à réaliser |
+| J2 — Données et autorisation | Partiel | Brouillon/quarantaine/publication/révocation présents ; PostgreSQL optionnel, migrations et RLS testés ; reprise/restore et parser isolé à réaliser |
 | J3 — Retrieval et RAG | À réaliser | B1 hybride évalué face à B0, puis B2 avec citations et abstention ; aucun modèle choisi sans mesure |
 | J4 — Parcours métier | Partiel | Confirmation/outbox/simulateur présents ; connecteur GMAO distant et reconciliation à valider |
 | J5 — Exploitation | Partiel | CI, trace IDs, limites et backup présents ; quotas globaux, traces distribuées, tombstones, charge et restauration pilote à terminer |
 | J6 — Validation | Partiel | Tests techniques et smoke publics présents ; 80 dev/200 finaux indépendants, double annotation, avis métier et essais utilisateurs manquants |
-| J7 — Livraison et GitHub | Préparé localement | Source, documents et workflow CI prêts ; push et première exécution GitHub à vérifier après connexion |
+| J7 — Livraison et GitHub | Publié et CI vérifiée | Dépôt public et contrôles Linux/Windows/PostgreSQL ; qualification pilote à poursuivre |
 
 ## Prochaine séance concrète
 
@@ -23,7 +23,7 @@ Le dossier de mission est la cible. La version 0.1 est une première tranche com
 
 ## Itération suivante : PostgreSQL et B1
 
-Fondation PostgreSQL ajoutée : Compose séparé, rôles par site, schéma SQL versionné, RLS forcée et vérification par connexions TCP réelles. Guide : `docs/postgres.fr.md`. Le raccordement de l’API, la migration des données et la comparaison des parcours restent les prochains critères de sortie ; la seule présence du service PostgreSQL ne valide pas J2.
+Fondation PostgreSQL ajoutée : Compose séparé, rôles par site, schéma SQL versionné, RLS forcée et vérification par connexions TCP réelles. Guide : `docs/postgres.fr.md`. L’API optionnelle est raccordée avec contrats métier partagés, HTTP réel et tests de concurrence. La reprise des données, la restauration et une comparaison plus large restent des critères de sortie ; J2 reste partiel.
 
 - Migrer le schéma vers PostgreSQL via migrations versionnées, avec même contrat API et tests d’intégration sur vraie instance.
 - Ajouter RLS sur chaque table métier et tester avec un rôle runtime sans privilèges de propriétaire/BYPASSRLS. Inclure les fichiers et les jointures.

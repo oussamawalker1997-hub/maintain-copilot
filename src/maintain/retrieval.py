@@ -17,8 +17,8 @@ STOPWORDS = set(
 
 
 def asset_for(db, principal, asset_id):
-    asset = db.execute(
-        "SELECT * FROM assets WHERE id=? AND site=?", (asset_id, principal["site"])
+    asset = db.query(
+        "SELECT * FROM assets WHERE id={p} AND site={p}", (asset_id, principal["site"])
     ).fetchone()
     if not asset:
         raise HTTPException(404, "Not found")
@@ -40,15 +40,7 @@ def search(db, principal, asset, question):
     codes = re.findall(r"\b[eE]\d{3}\b", question)
     if not terms:
         return []
-    # Values are bound parameters. Each token is quoted so FTS operators are not user controlled.
-    match = " OR ".join('"' + term.replace('"', '""') + '"' for term in terms)
-    rows = db.execute(
-        """SELECT p.number,p.text,d.* FROM page_fts
-        JOIN pages p ON p.id=page_fts.rowid JOIN documents d ON d.id=p.document_id
-        WHERE page_fts MATCH ? AND d.site=? AND d.status='published'
-        AND d.model=? AND d.hardware=? ORDER BY bm25(page_fts),d.id,p.number""",
-        (match, principal["site"], asset["model"], asset["hardware"]),
-    ).fetchall()
+    rows = db.search_pages(terms, principal["site"], asset["model"], asset["hardware"])
     results = []
     for row in rows:
         if not applicable(row, asset):
@@ -95,14 +87,14 @@ def make_answer(db, principal, data):
             result.update(status="abstained", reason="No applicable lexical evidence found")
         else:
             result["sources"] = found[:5]
-    db.execute(
-        "INSERT INTO runs VALUES(?,?,?,?,?)",
-        (
-            result["run_id"],
-            principal["id"],
-            data.asset_id,
-            json.dumps(result, ensure_ascii=False),
-            now(),
+    db.insert(
+        "runs",
+        dict(
+            id=result["run_id"],
+            actor=principal["id"],
+            asset_id=data.asset_id,
+            result=json.dumps(result, ensure_ascii=False),
+            created_at=now(),
         ),
     )
     audit(db, principal["id"], "search." + result["status"], result["run_id"])
@@ -110,8 +102,8 @@ def make_answer(db, principal, data):
 
 
 def checked_run(db, principal, run_id):
-    row = db.execute(
-        "SELECT * FROM runs WHERE id=? AND actor=?",
+    row = db.query(
+        "SELECT * FROM runs WHERE id={p} AND actor={p}",
         (
             run_id,
             principal["id"],
@@ -120,10 +112,10 @@ def checked_run(db, principal, run_id):
     if not row:
         raise HTTPException(404, "Not found")
     asset = asset_for(db, principal, row["asset_id"])
-    result = json.loads(row["result"])
+    result = row["result"] if isinstance(row["result"], dict) else json.loads(row["result"])
     for source in result["sources"]:
-        doc = db.execute(
-            "SELECT * FROM documents WHERE id=? AND site=? AND status='published'",
+        doc = db.query(
+            "SELECT * FROM documents WHERE id={p} AND site={p} AND status='published'",
             (source["document_id"], principal["site"]),
         ).fetchone()
         if not doc or not applicable(doc, asset):

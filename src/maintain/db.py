@@ -39,6 +39,9 @@ def initialize(path: Path):
 
 
 def audit(db, actor, event, object_id):
+    if hasattr(db, "insert"):
+        db.insert("audit", dict(actor=actor, event=event, object_id=object_id, created_at=now()))
+        return
     db.execute(
         "INSERT INTO audit(actor,event,object_id,created_at) VALUES(?,?,?,?)",
         (actor, event, object_id, now()),

@@ -4,8 +4,10 @@ import logging
 import os
 import secrets
 import sqlite3
+from dataclasses import replace
 from pathlib import Path
 
+import psycopg
 import uvicorn
 
 from maintain.config import Settings
@@ -71,31 +73,59 @@ def backup(database: Path, output: Path):
 
 
 def main():
+    settings = Settings.from_env()
     parser = argparse.ArgumentParser(prog="maintain")
-    parser.add_argument("--database", type=Path, default=Settings.from_env().database)
+    parser.add_argument("--database", type=Path, default=settings.database)
     commands = parser.add_subparsers(dest="command", required=True)
     seed_cmd = commands.add_parser("seed")
     seed_cmd.add_argument("--fixtures", type=Path, default=Path("fixtures/synthetic"))
+    pg_seed = commands.add_parser("seed-postgres")
+    pg_seed.add_argument("--fixtures", type=Path, default=Path("fixtures/synthetic"))
     serve_cmd = commands.add_parser("serve")
     serve_cmd.add_argument("--port", type=int, default=8000)
     commands.add_parser("dispatch")
     backup_cmd = commands.add_parser("backup")
     backup_cmd.add_argument("output", type=Path)
     args = parser.parse_args()
-    if args.command == "seed":
+    settings = replace(settings, database=args.database)
+    if args.command == "seed-postgres":
+        from maintain.postgres_seed import seed_postgres
+
+        if settings.backend != "postgres":
+            raise SystemExit("Set MAINTAIN_BACKEND=postgres explicitly before provisioning")
+        try:
+            seed_postgres(settings, args.fixtures)
+        except psycopg.Error:
+            raise SystemExit(
+                "PostgreSQL provisioning failed; details withheld to protect data"
+            ) from None
+        except (RuntimeError, OSError, ValueError) as exc:
+            raise SystemExit(str(exc)) from None
+    elif args.command == "seed":
+        if settings.backend != "sqlite":
+            raise SystemExit("Use seed-postgres for PostgreSQL; SQLite data left unchanged")
         seed(args.database, args.fixtures)
     elif args.command == "serve":
         from maintain.app import create_app
 
         logging.basicConfig(level=logging.INFO, format="%(name)s %(message)s")
         # Local demonstration only. An enterprise deployment requires a different security model.
-        uvicorn.run(
-            create_app(Settings(args.database)), host="127.0.0.1", port=args.port, access_log=False
-        )
+        uvicorn.run(create_app(settings), host="127.0.0.1", port=args.port, access_log=False)
     elif args.command == "dispatch":
-        with connect(args.database) as db:
-            print(f"Simulated deliveries: {dispatch(db)}")
+        if settings.backend == "postgres":
+            from maintain.postgres import SITE_ROLES, site_connection
+
+            total = 0
+            for site in SITE_ROLES:
+                with site_connection(settings, site) as db:
+                    total += dispatch(db)
+            print(f"Simulated deliveries: {total}")
+        else:
+            with connect(args.database) as db:
+                print(f"Simulated deliveries: {dispatch(db)}")
     elif args.command == "backup":
+        if settings.backend != "sqlite":
+            raise SystemExit("This backup command supports SQLite only; no backup created")
         backup(args.database, args.output)
 
 

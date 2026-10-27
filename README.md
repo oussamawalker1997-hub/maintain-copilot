@@ -94,7 +94,7 @@ flowchart TD
  W --> S["Local CMMS simulator"]
 ```
 
-All source content and fixtures are local; there are no model API calls. SQLite is a deliberate **local baseline decision**, not the PostgreSQL/RLS production architecture in the mission. Authorization is application-level. Database access grants access to all sites. FTS index statistics are global, so this design does not claim statistical side-channel isolation. See [ADR-001](docs/adr/001-local-baseline.md).
+All source content and fixtures are local; there are no model API calls. SQLite is a deliberate **local baseline decision**, not the PostgreSQL/RLS production architecture in the mission. In the default SQLite mode, authorization is application-level and database access grants access to all sites. The optional PostgreSQL mode adds forced RLS with real site roles. FTS index statistics are global, so this design does not claim statistical side-channel isolation. See [ADR-001](docs/adr/001-local-baseline.md).
 
 ## Project map
 
@@ -114,7 +114,7 @@ All source content and fixtures are local; there are no model API calls. SQLite 
 
 ## Before any enterprise pilot
 
-This version binds to `127.0.0.1` and is intended for a single trusted machine. Do not expose it publicly. PDF parsing is synchronous and **not sandboxed**: import only trusted test files. Request-size limits do not protect against all malicious or compressed PDF inputs. There is no OCR, enterprise SSO, PostgreSQL RLS, independent final evaluation, LLM synthesis, hybrid retrieval, remote CMMS integration, managed secrets, retention enforcement, or validated industrial procedure.
+This version binds to `127.0.0.1` and is intended for a single trusted machine. Do not expose it publicly. PDF parsing is synchronous and **not sandboxed**: import only trusted test files. Request-size limits do not protect against all malicious or compressed PDF inputs. There is no OCR, enterprise SSO, independent final evaluation, LLM synthesis, hybrid retrieval, remote CMMS integration, managed secrets, retention enforcement, or validated industrial procedure.
 
 The local simulator's atomicity does not imply exactly-once delivery to a remote service. Restore does not yet replay deletion/revocation tombstones; see the runbook. API rate limits are per process and are not distributed. No 30-day SLO or large-corpus load target has been demonstrated.
 
@@ -122,7 +122,7 @@ The local simulator's atomicity does not imply exactly-once delivery to a remote
 
 ### PostgreSQL foundation
 
-The separate [PostgreSQL setup guide](docs/postgres.fr.md) prepares local secrets, starts PostgreSQL 17, applies checksummed SQL migrations and verifies isolation with actual site-specific database logins. The PostgreSQL CI job runs these checks on a real server. **This foundation does not yet switch the API from SQLite or migrate existing data.**
+The separate [PostgreSQL setup guide](docs/postgres.fr.md) prepares local secrets, starts PostgreSQL 17, applies checksummed SQL migrations and verifies isolation with actual site-specific database logins. The PostgreSQL CI job runs these checks on a real server. **The API can explicitly use PostgreSQL with `MAINTAIN_BACKEND=postgres`; SQLite remains the default and existing data is not migrated.** The guide covers separate fixture provisioning, runtime site roles and a return to SQLite. See [ADR-002](docs/adr/002-postgres-api.md) for transaction, identity and deployment limits.
 
 ### Existing SQLite application container
 

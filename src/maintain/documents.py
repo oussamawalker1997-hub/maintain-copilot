@@ -10,9 +10,11 @@ from pypdf import PdfReader
 
 from maintain.db import audit, now
 from maintain.models import DocumentRequest
+from maintain.storage import repository
 
 
 def ingest(db, principal, data: DocumentRequest):
+    db = repository(db)
     pages = data.pages
     reason = None
     if pages is None:
@@ -48,8 +50,8 @@ def ingest(db, principal, data: DocumentRequest):
     else:
         identity = json.dumps(pages, ensure_ascii=False).encode()
     content_hash = hashlib.sha256(identity).hexdigest()
-    existing = db.execute(
-        "SELECT * FROM documents WHERE site=? AND content_hash=?",
+    existing = db.query(
+        "SELECT * FROM documents WHERE site={p} AND content_hash={p}",
         (principal["site"], content_hash),
     ).fetchone()
     if existing:
@@ -62,38 +64,33 @@ def ingest(db, principal, data: DocumentRequest):
         reason = reason or "One or more pages have insufficient text; OCR/review required"
     document_id = str(uuid.uuid4())
     status = "quarantined" if reason else "draft"
-    db.execute(
-        """INSERT INTO documents
-        (id,site,title,family,revision,model,hardware,firmware_min,firmware_max,
-         content_hash,status,reason,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (
-            document_id,
-            principal["site"],
-            data.title,
-            data.family,
-            data.revision,
-            data.model,
-            data.hardware,
-            data.firmware_min,
-            data.firmware_max,
-            content_hash,
-            status,
-            reason,
-            now(),
+    db.insert(
+        "documents",
+        dict(
+            id=document_id,
+            site=principal["site"],
+            title=data.title,
+            family=data.family,
+            revision=data.revision,
+            model=data.model,
+            hardware=data.hardware,
+            firmware_min=data.firmware_min,
+            firmware_max=data.firmware_max,
+            content_hash=content_hash,
+            status=status,
+            reason=reason,
+            created_at=now(),
         ),
     )
     for number, text in enumerate(pages or [], 1):
-        db.execute(
-            "INSERT INTO pages(document_id,number,text) VALUES(?,?,?)",
-            (document_id, number, text),
-        )
+        db.insert("pages", dict(document_id=document_id, number=number, text=text))
     audit(db, principal["id"], "document.ingested", document_id)
     return {"id": document_id, "status": status, "reason": reason, "duplicate": False}
 
 
 def scoped_document(db, principal, document_id):
-    row = db.execute(
-        "SELECT * FROM documents WHERE id=? AND site=?", (document_id, principal["site"])
+    row = db.query(
+        "SELECT * FROM documents WHERE id={p} AND site={p}", (document_id, principal["site"])
     ).fetchone()
     if not row:
         raise HTTPException(404, "Not found")
