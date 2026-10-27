@@ -25,6 +25,23 @@ Trois mots de passe aléatoires sont générés sous `.local/postgres`, réperto
 
 Ne pas afficher les secrets, les envoyer dans une capture, ou exécuter des commandes qui exportent la configuration avec leurs valeurs. `prepare` ne remplace jamais des clés existantes. Un répertoire incomplet demande une revue ; changer un fichier de mot de passe ne change pas un rôle déjà initialisé.
 
+## Réparation des secrets Windows CRLF
+
+Une ancienne version de `prepare` écrivait des fins de ligne CRLF sous Windows.
+Sur une instance déjà initialisée, mettre le dépôt à jour puis exécuter :
+
+```powershell
+& .\.venv\Scripts\python.exe scripts\postgres_local.py repair-passwords
+```
+
+Cette commande de développement utilise la socket locale du conteneur et son accès
+administrateur existant. Elle réaligne les trois mots de passe sur les 64 caractères
+hexadécimaux des secrets montés, dans une transaction, puis vérifie les trois connexions
+TCP. Elle conserve les fichiers, rôles, privilèges et données. Elle peut être relancée.
+Elle ne s'applique pas à un serveur distant ou à des mots de passe personnalisés.
+Reprendre ensuite `migrate` deux fois et `verify`. Les nouveaux secrets sont écrits
+avec LF sur tous les systèmes ; les lecteurs acceptent LF et CRLF.
+
 ## Rôles et isolation
 
 | Rôle | Utilisation | Limite |
