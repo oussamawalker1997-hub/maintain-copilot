@@ -11,6 +11,7 @@ import secrets
 import subprocess
 import uuid
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
 ROLE_CONFIG = {
@@ -144,6 +145,21 @@ def verify():
         scalar("SELECT count(*) FROM maintain.schema_migrations;") == "1",
         "Unexpected migration state",
     )
+    original = (ROOT / "migrations/postgres/001_core.sql").read_text(encoding="utf-8")
+    with TemporaryDirectory() as directory:
+        changed = Path(directory) / "001_core.sql"
+        changed.write_text(original + "\n-- intentional checksum verification\n", encoding="utf-8")
+        rejected = psql(migration_script(changed), allow_failure=True)
+        require(
+            rejected.returncode != 0 and "Applied migration checksum mismatch" in rejected.stderr,
+            "Changed migration was not rejected",
+        )
+    require(
+        scalar("SELECT checksum FROM maintain.schema_migrations WHERE version='001_core';")
+        == hashlib.sha256(original.encode("utf-8")).hexdigest(),
+        "Migration checksum changed after rejected modification",
+    )
+    print("PASS modified_migration_rejected")
     for role, site in (("site_a", "DE-A"), ("site_b", "DE-B")):
         require(scalar("SELECT maintain.current_site();", role) == site, "Wrong role/site mapping")
         require(
@@ -159,7 +175,8 @@ def verify():
         scalar("""SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname='maintain' AND c.relkind='r' AND c.relname <> 'schema_migrations'
         AND (NOT c.relrowsecurity OR NOT c.relforcerowsecurity
-             OR pg_has_role('maintain_site_a', c.relowner, 'MEMBER'));""")
+             OR pg_has_role('maintain_site_a', c.relowner, 'MEMBER')
+             OR pg_has_role('maintain_site_b', c.relowner, 'MEMBER'));""")
         == "0",
         "RLS/ownership invariant failed",
     )
@@ -184,7 +201,23 @@ COMMIT;""")
                 scalar(f"SELECT site FROM maintain.assets WHERE id='{tag}';", role) == own_site,
                 "Cross-site asset visibility",
             )
+            require(
+                scalar(
+                    f"""BEGIN;
+INSERT INTO maintain.assets(site,id,model,hardware,firmware)
+  VALUES('{own_site}','{tag}-own','verification','rev-B','2.4');
+UPDATE maintain.assets SET firmware='2.5' WHERE id='{tag}-own';
+SELECT firmware FROM maintain.assets WHERE id='{tag}-own';
+WITH changed AS (DELETE FROM maintain.assets WHERE id='{tag}-own' RETURNING id)
+  SELECT count(*) FROM changed;
+ROLLBACK;""",
+                    role,
+                )
+                == "2.5\n1",
+                "Own-site write lifecycle failed",
+            )
         print("PASS reads_are_site_scoped")
+        print("PASS own_site_insert_update_delete")
         require(
             scalar(
                 f"""SELECT count(*) FROM maintain.assets
@@ -248,6 +281,18 @@ COMMIT;""")
             "site_a",
             "cross_site_insert_denied",
         )
+        foreign_key = psql(
+            verbose
+            + f"""INSERT INTO maintain.pages(site,document_id,number,text)
+            VALUES('DE-A','{doc}',1,'cross-site reference must fail');""",
+            "site_a",
+            allow_failure=True,
+        )
+        require(
+            foreign_key.returncode != 0 and "23503" in foreign_key.stderr,
+            "Cross-site document relationship was not rejected",
+        )
+        print("PASS composite_foreign_key_blocks_cross_site_reference")
         expect_denied(verbose + "TRUNCATE maintain.assets;", "site_a", "truncate_denied")
         expect_denied(verbose + "SET ROLE maintain_site_b;", "site_a", "role_impersonation_denied")
         expect_denied(
