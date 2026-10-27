@@ -1,0 +1,37 @@
+name: maintain-postgres
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: maintain_admin
+      POSTGRES_DB: maintain
+      POSTGRES_PASSWORD_FILE: /run/secrets/admin_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/001-roles.sh:/docker-entrypoint-initdb.d/001-roles.sh:ro
+    secrets:
+      - admin_password
+      - site_a_password
+      - site_b_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maintain_admin -d maintain"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    shm_size: 128mb
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
+secrets:
+  admin_password:
+    file: ./.local/postgres/admin-password
+  site_a_password:
+    file: ./.local/postgres/site-a-password
+  site_b_password:
+    file: ./.local/postgres/site-b-password
+volumes:
+  pgdata:
