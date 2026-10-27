@@ -120,6 +120,12 @@ The local simulator's atomicity does not imply exactly-once delivery to a remote
 
 ## Optional Docker setup
 
+### PostgreSQL foundation
+
+The separate [PostgreSQL setup guide](docs/postgres.fr.md) prepares local secrets, starts PostgreSQL 17, applies checksummed SQL migrations and verifies isolation with actual site-specific database logins. The PostgreSQL CI job runs these checks on a real server. **This foundation does not yet switch the API from SQLite or migrate existing data.**
+
+### Existing SQLite application container
+
 Docker is not required for the Windows quick start. Container files are provided but have not been executed in the authoring environment. With Docker installed:
 
 ```bash

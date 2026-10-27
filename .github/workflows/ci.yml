@@ -1,5 +1,8 @@
 name: Quality gates
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 permissions:
   contents: read
 jobs:
@@ -30,3 +33,24 @@ jobs:
           name: synthetic-smoke-evaluation-${{ matrix.os }}
           path: artifacts/evaluation.json
           retention-days: 7
+  postgres-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+      - name: Generate isolated development credentials
+        run: python scripts/postgres_local.py prepare
+      - name: Start real PostgreSQL 17
+        run: docker compose -f compose.postgres.yaml up -d --wait
+      - name: Apply migrations and verify repeatability
+        run: |
+          python scripts/postgres_local.py migrate
+          python scripts/postgres_local.py migrate
+      - name: Verify real role authentication and isolation
+        run: python scripts/postgres_local.py verify
+      - name: Remove disposable CI database
+        if: always()
+        run: docker compose -f compose.postgres.yaml down --volumes

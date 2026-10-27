@@ -23,6 +23,8 @@ Le dossier de mission est la cible. La version 0.1 est une première tranche com
 
 ## Itération suivante : PostgreSQL et B1
 
+Fondation PostgreSQL ajoutée : Compose séparé, rôles par site, schéma SQL versionné, RLS forcée et vérification par connexions TCP réelles. Guide : `docs/postgres.fr.md`. Le raccordement de l’API, la migration des données et la comparaison des parcours restent les prochains critères de sortie ; la seule présence du service PostgreSQL ne valide pas J2.
+
 - Migrer le schéma vers PostgreSQL via migrations versionnées, avec même contrat API et tests d’intégration sur vraie instance.
 - Ajouter RLS sur chaque table métier et tester avec un rôle runtime sans privilèges de propriétaire/BYPASSRLS. Inclure les fichiers et les jointures.
 - Séparer les permissions des métadonnées documentaires ; revalider avant restitution et effets externes.
