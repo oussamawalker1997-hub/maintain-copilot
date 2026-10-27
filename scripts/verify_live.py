@@ -1,5 +1,6 @@
-"""Exercise a real loopback server; never use the developer's own database or keys."""
+"""Exercise real loopback HTTP with temporary SQLite or an explicitly empty PostgreSQL demo."""
 
+import argparse
 import json
 import os
 import socket
@@ -9,21 +10,38 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from dataclasses import replace
 from pathlib import Path
 
 from maintain.cli import seed
+from maintain.config import Settings
+from maintain.postgres_seed import seed_postgres
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--postgres",
+        action="store_true",
+        help="Provision an EMPTY PostgreSQL demo; refuses existing data/keys",
+    )
+    args = parser.parse_args()
+    backend = "postgres" if args.postgres else "sqlite"
     root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory() as directory:
         database = Path(directory) / "live.sqlite"
-        seed(database, root / "fixtures/synthetic")
-        keys = json.loads((database.parent / "demo-credentials.json").read_text(encoding="utf-8"))
+        if args.postgres:
+            settings = replace(Settings.from_env(), backend="postgres")
+            seed_postgres(settings, root / "fixtures/synthetic")
+            key_file = settings.postgres_secrets / "demo-credentials.json"
+        else:
+            seed(database, root / "fixtures/synthetic")
+            key_file = database.parent / "demo-credentials.json"
+        keys = json.loads(key_file.read_text(encoding="utf-8"))
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
-        env = os.environ | {"PYTHONPATH": str(root / "src")}
+        env = os.environ | {"PYTHONPATH": str(root / "src"), "MAINTAIN_BACKEND": backend}
         server = subprocess.Popen(
             [
                 sys.executable,
@@ -59,7 +77,8 @@ def main():
                 if server.poll() is not None:
                     raise RuntimeError("Local server exited during startup")
                 try:
-                    call("/healthz")
+                    _, health = call("/healthz")
+                    assert json.loads(health)["storage"] == backend
                     break
                 except (urllib.error.URLError, TimeoutError):
                     time.sleep(0.05)
@@ -97,7 +116,12 @@ def main():
             )
             _, delivered = call(f"/v1/tickets/{ticket['id']}")
             assert json.loads(delivered)["status"] == "sent"
-            print("PASS: live HTTP, UI files, OpenAPI, scoped evidence, confirmed ticket, dispatch")
+            print(
+                "PASS: live HTTP, UI files, OpenAPI, scoped evidence, confirmed ticket, dispatch"
+                + " (storage="
+                + backend
+                + ")"
+            )
         finally:
             server.terminate()
             try:
