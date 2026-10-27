@@ -1,26 +1,36 @@
 # Verification record — v0.1
 
-Observed locally on 26 October 2026, Python 3.12.14 / Linux. These are development results, not customer or production outcomes.
+Current evidence updated on 28 October 2026 (Europe/Berlin), Python 3.12.
+These are development results, not customer or production outcomes.
+
+The PostgreSQL API implementation passed [GitHub Actions run 40602873724](https://github.com/oussamawalker1997-hub/maintain-copilot/actions/runs/40602873724)
+at commit `ccea213a70ab89d2b890f51bd78ac321bae86d59`: all six jobs succeeded,
+including the API contract tests, Windows/Linux baselines, and three PostgreSQL credential modes.
+The optional API has not yet been accepted on the user's own Windows machine.
+Existing SQLite data is not transferred.
 
 | Check | Observed result | Scope / limit |
 |---|---|---|
-| `python -m pytest -q` | 28 passed after UTF-8 correction | API, access, variants, lifecycle, concurrency, tickets, backup, encoding repair |
+| `python -m pytest -q` | 36 passed, 25 PostgreSQL tests skipped without disposable opt-in | API, access, variants, lifecycle, concurrency, tickets, backup, encoding repair |
 | `python -m ruff check .` | Passed | Static lint |
 | `python -m ruff format --check .` | Passed | Python formatting |
 | `node --check src/maintain/web/app.js` | Passed | JavaScript syntax only |
 | `python scripts/evaluate.py` | 10/10 public smoke cases passed | Known synthetic fixtures, not independent final evaluation |
 | `python scripts/verify_live.py` | Passed | Real loopback HTTP: UI files, schema, sources, ticket and dispatch |
 | Editable package installation | Passed | Installed into an isolated venv |
-| Browser rendering and interaction | User screenshots confirm login, asset selection, search and source page | Source mojibake found on Windows; repair awaiting user verification |
+| Browser rendering and interaction | User screenshots confirm login, asset selection, search and source page | UTF-8 repair confirmed; synthetic SQLite journeys confirmed by user |
 | Windows installation | User confirmed Python 3.12.4, installation, pip check and Ruff | User's own Windows machine |
-| Windows pytest after permission correction | User confirmed 25 passed | Expanded encoding suite Windows rerun pending |
-| Docker build/runtime | Not executed | Docker unavailable |
-| GitHub Actions | Workflow prepared, not executed remotely | Account connection required |
+| Windows pytest after encoding correction | User confirmed 28 passed; current CI passes 36 | Local optional PostgreSQL API acceptance pending |
+| PostgreSQL Docker runtime | User confirmed healthy PostgreSQL 17 and 13 foundation checks | Application Docker image build remains unverified |
+| GitHub Actions | Six jobs passed on the implementation commit linked above | Windows/Linux baseline, PostgreSQL foundation and API |
+| PostgreSQL API integration | 25 passed on real PostgreSQL 17 | Shared routes, role isolation, concurrent workers, feedback/audit, deferred commit rollback, outages and provisioning guards |
+| PostgreSQL live HTTP/CLI | Passed in CI | Server, UI files, OpenAPI, sources, confirmed ticket and dispatch; disposable fixtures only |
+| PostgreSQL foundation on user Windows | Migration applied twice; 13 checks passed | Authentication repaired without deleting the volume; API still on SQLite at that observation |
 | Business impact / industrial safety | Not measured / not validated | No actual enterprise pilot |
 
 The dependency combination emits a Starlette warning about the future replacement of HTTPX TestClient support. Current tests pass with the pinned versions. Do not hide this warning; review the migration before updating the lockfile. The HTTP server check uses the standard library and is independent of TestClient.
 
-Windows portability correction: retain the full restore/search test on every platform, but assert POSIX mode bits only when `os.name == "posix"`. This does not validate Windows ACLs or claim equivalent file protection there. The GitHub workflow now includes both Linux and Windows runners; their remote results remain unverified until publication.
+Windows portability correction: retain the full restore/search test on every platform, but assert POSIX mode bits only when `os.name == "posix"`. This does not validate Windows ACLs or claim equivalent file protection there. The GitHub workflow now includes both Linux and Windows runners; both runner jobs have passed remotely.
 
 Two defects found during development: a SQLite connection could be entered and exited on different FastAPI worker threads; fixed with request-owned connections allowing sequential cross-thread use. An empty upload test accidentally reused the deliberately quarantined fixture with different metadata; the 409 was correct, and the test now uses distinct content. Concurrency and duplicate-metadata tests retain these behaviors.
 

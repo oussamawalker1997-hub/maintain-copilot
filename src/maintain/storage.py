@@ -1,7 +1,7 @@
 """Small SQL dialect boundary; business operations share the same transaction.
 
 Only constant SQL templates contain {p}. Values always remain driver parameters.
-PostgreSQL repositories belong to one real site role, never to an admin connection.
+Runtime PostgreSQL repositories use real site roles; explicit fixture provisioning is separate.
 """
 
 import json
