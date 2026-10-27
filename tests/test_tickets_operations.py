@@ -141,7 +141,7 @@ def test_seed_does_not_overwrite_existing_credentials(setup):
 def test_feedback_and_audit_are_scoped_and_editor_only(setup):
     client, _, keys = setup
     result = question(client, keys).json()
-    feedback = {"run_id": result["run_id"], "useful": True, "reason": "Sources are readable"}
+    feedback = {"run_id": result["run_id"], "useful": True, "reason": "correct"}
     assert (
         client.post("/v1/feedback", headers=headers(keys, "tech-b"), json=feedback).status_code
         == 404
